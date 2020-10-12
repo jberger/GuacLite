@@ -1,6 +1,6 @@
 package GuacLite::Client::Guacd;
 
-use Mojo::Base 'Mojo::EventEmitter', -signatures;
+use Mojo::Base 'Mojo::EventEmitter';
 
 use Mojo::Util;
 use Mojo::Promise;
@@ -26,17 +26,22 @@ has image_mimetypes => sub { [] };
 has video_mimetypes => sub { [] };
 has timezone => '';
 
-sub close ($self) {
+sub close {
+  my $self = shift;
   return unless my $s = $self->{stream};
   $s->close;
 }
 
-sub connect_p ($self, $connect = {}) {
+sub connect_p {
+  my $self = shift;
+  my $connect = shift || {};
   Scalar::Util::weaken($self);
-  return Mojo::Promise->new(sub ($res, $rej) {
+  return Mojo::Promise->new(sub {
+    my ($res, $rej) = @_;
     $connect->{address} ||= $self->host;
     $connect->{port}    ||= $self->port;
-    Mojo::IOLoop->client($connect, sub ($, $err, $stream) {
+    Mojo::IOLoop->client($connect, sub {
+      my (undef, $err, $stream) = @_;
       return $rej->("Connect error: $err") if $err;
 
       #TODO configurable timeout
@@ -44,7 +49,8 @@ sub connect_p ($self, $connect = {}) {
       $self->{stream} = $stream;
       #TODO handle backpressure
 
-      $stream->on(read => sub ($, $bytes) {
+      $stream->on(read => sub {
+        my (undef, $bytes) = @_;
         print STDERR '<- ' . Mojo::Util::term_escape($bytes) . "\n" if DEBUG;
         $self->{buffer} .= $bytes;
         while($self->{buffer} =~ s/^([^;]+;)//) {
@@ -52,11 +58,11 @@ sub connect_p ($self, $connect = {}) {
         }
       });
 
-      $stream->on(error => sub ($, $err) {
-        $self->emit(error => $err);
+      $stream->on(error => sub {
+        $self->emit(error => $_[1]);
       });
 
-      $stream->on(close => sub ($) {
+      $stream->on(close => sub {
         print STDERR "Connection to guacd closed\n" if DEBUG;
         return unless $self;
         delete @{$self}{qw(buffer id stream)};
@@ -68,15 +74,16 @@ sub connect_p ($self, $connect = {}) {
   });
 }
 
-sub handshake_p ($self) {
-  Scalar::Util::weaken($self);
+sub handshake_p {
+  Scalar::Util::weaken(my $self = shift);
 
   return Mojo::Promise->reject('Not connected')
     unless my $stream = $self->{stream};
 
   my $args;
   return $self->_expect(args => [select => $self->protocol])
-    ->then(sub($got){
+    ->then(sub {
+      my $got = shift;
       my $version = shift @$got;
       #TODO check version
       $args = $got;
@@ -91,21 +98,24 @@ sub handshake_p ($self) {
       push @connect,  map { $proto->{$_} // '' } @$args;
       $self->_expect(ready => \@connect);
     })
-    ->then(sub($id) {
+    ->then(sub {
+      my $id = shift;
       print STDERR "Session $id->[0] is ready" if DEBUG;
       $self->{id} = $id->[0];
       return $id->[0];
-    })->catch(sub ($err) { Mojo::Promise->reject("Handshake error: $err") });
+    })->catch(sub { Mojo::Promise->reject("Handshake error: $_[0]") });
 }
 
-sub write ($self, $bytes) {
+sub write {
+  my ($self, $bytes) = @_;
   Carp::croak('Not connected')
     unless my $s = $self->{stream};
   print STDERR '-> ' . Mojo::Util::term_escape($bytes) . "\n" if DEBUG;
   $self->{stream}->write($bytes);
 }
 
-sub write_p ($self, $bytes) {
+sub write_p {
+  my ($self, $bytes) = @_;
   return Mojo::Promise->reject('Not connected')
     unless my $s = $self->{stream};
 
@@ -115,10 +125,12 @@ sub write_p ($self, $bytes) {
   return $p;
 }
 
-sub _expect($self, $command, $send) {
+sub _expect {
+  my ($self, $command, $send) = @_;
   my $p = Mojo::Promise->new;
 
-  $self->once(instruction => sub ($, $raw) {
+  $self->once(instruction => sub {
+    my (undef, $raw) = @_;
     my $instruction = decode($raw);
     my $got = shift @$instruction;
     if ($got eq $command) {
@@ -129,19 +141,20 @@ sub _expect($self, $command, $send) {
   });
 
   $self->write_p(encode($send))
-    ->catch(sub($err) { $p->reject("Send failed: $err") });
+    ->catch(sub { $p->reject("Send failed: $_[0]") });
 
   return $p;
 }
 
 ## FUNCTIONS!
 
-sub encode ($words) {
+sub encode {
+  my $words = shift;
   return join(',', map { $_ //= ''; length . '.' . Mojo::Util::encode('UTF-8', $_) } @$words) . ";";
 }
 
-sub decode ($line) {
-  $line = Mojo::Util::decode('UTF-8', $line);
+sub decode {
+  my $line = Mojo::Util::decode('UTF-8', shift);
   Carp::croak 'Instruction does not end with ;'
     unless $line =~ s/;$//;
 
