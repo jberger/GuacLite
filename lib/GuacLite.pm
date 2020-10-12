@@ -1,5 +1,10 @@
 package GuacLite;
 
+use strict;
+
+our $VERSION = '0.01';
+$VERSION = eval $VERSION;
+
 1;
 
 =head1 NAME
