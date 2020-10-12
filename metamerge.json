@@ -1,5 +1,5 @@
 {
-   "license" : [ "perl_5" ],
+   "license" : [ "apache_2_0" ],
    "meta-spec" : {
       "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
       "version" : "2"
@@ -10,7 +10,6 @@
       },
       "bugtracker" : {
          "web" : "http://github.com/jberger/GuacLite/issues"
-      },
-      "license" : [ "apache_2_0" ]
+      }
    }
 }
