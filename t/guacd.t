@@ -72,7 +72,24 @@ subtest 'invalid response (handshake missing args)' => sub {
     ->wait;
   is_deeply \@received, ['6.select,3.vnc;'];
   ok ! defined $res;
-  like $err, qr'Handshake error: Unexpected command "bad" received, expected "args"';
+  is $err, 'Handshake error: Unexpected command "bad" received, expected "args"';
+};
+
+subtest 'unsupported version' => sub {
+  local @send = ('4.args,13.VERSION_1_0_0;');
+  local @received;
+  my $client = GuacLite::Client::Guacd->new(
+    host => '127.0.0.1',
+    port => $port,
+  );
+  my ($res, $err);
+  $client->connect_p
+    ->then(sub { $client->handshake_p })
+    ->then(sub { $res = shift }, sub { $err = shift })
+    ->wait;
+  is_deeply \@received, ['6.select,3.vnc;'];
+  ok ! defined $res;
+  is $err, 'Handshake error: Version VERSION_1_0_0 less than supported (VERSION_1_1_0)';
 };
 
 subtest 'invalid response (handshake missing ready)' => sub {
@@ -100,7 +117,7 @@ subtest 'invalid response (handshake missing ready)' => sub {
     '7.connect,13.VERSION_1_1_0,0.,0.;'
   ];
   ok ! defined $res;
-  like $err, qr'Handshake error: Unexpected command "bad" received, expected "ready"';
+  is $err, 'Handshake error: Unexpected command "bad" received, expected "ready"';
 };
 
 done_testing;

@@ -26,6 +26,20 @@ has image_mimetypes => sub { [] };
 has video_mimetypes => sub { [] };
 has timezone => '';
 
+# supported version of guacamole protocol
+my @v = (1,1,0);
+my $v = do { local $" = '_'; "VERSION_@v" };
+
+sub _check_version {
+  my $version = shift;
+  return 0 unless
+    $version =~ /^VERSION_(\d+)_(\d+)_(\d+)$/;
+  return 0 unless $1 >= $v[0];
+  return 0 unless $2 >= $v[1];
+  return 0 unless $3 >= $v[2];
+  return 1;
+}
+
 sub close {
   my $self = shift;
   return unless my $s = $self->{stream};
@@ -85,7 +99,8 @@ sub handshake_p {
     ->then(sub {
       my $got = shift;
       my $version = shift @$got;
-      #TODO check version
+      return Mojo::Promise->reject("Version $version less than supported ($v)")
+        unless _check_version($version);
       $args = $got;
       $self->write_p(encode([size => $self->width, $self->height, $self->dpi]));
     })
@@ -93,7 +108,7 @@ sub handshake_p {
     ->then(sub{ $self->write_p(encode([image => @{ $self->image_mimetypes } ])) })
     ->then(sub{ $self->write_p(encode([video => @{ $self->video_mimetypes } ])) })
     ->then(sub{
-      my @connect = (connect => 'VERSION_1_1_0');
+      my @connect = (connect => $v);
       my $proto = $self->connection_args;
       push @connect,  map { $proto->{$_} // '' } @$args;
       $self->_expect(ready => \@connect);
