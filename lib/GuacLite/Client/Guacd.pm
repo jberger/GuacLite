@@ -131,12 +131,15 @@ sub _expect {
 
   $self->once(instruction => sub {
     my (undef, $raw) = @_;
-    my $instruction = decode($raw);
+    my $instruction;
+    eval {
+      $instruction = decode($raw); 1;
+    } or return $p->reject($@);
     my $got = shift @$instruction;
     if ($got eq $command) {
       $p->resolve($instruction);
     } else {
-      $p->reject("Unexpected command $got received, expecting $command");
+      $p->reject(qq[Unexpected command "$got" received, expected "$command"]);
     }
   });
 
@@ -161,6 +164,8 @@ sub decode {
   my @words =
     map {
       my ($l, $s) = split /\./, $_, 2;
+      Carp::croak 'Invalid instruction encoding'
+        unless defined $l && defined $s && Scalar::Util::looks_like_number($l);
       Carp::croak 'Word length mismatch'
         unless length($s) == $l;
       $s;
