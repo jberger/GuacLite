@@ -22,21 +22,42 @@ sub _tunnel {
     ->then(sub { $client->handshake_p })
     ->then(sub {
       my $id = shift;
-      $client->on(instruction => sub { $c->send({text => $_[1]}) });
+
+      my $ws_stream = Mojo::IOLoop->stream($c->tx->connection);
+      my $guacd_stream = $client->stream;
+
+      $client->on(instruction => sub {
+        $c->send({text => $_[1]});
+
+        return if $ws_stream->can_write;
+        _backpressure($guacd_stream => $ws_stream);
+      });
       $c->on(text => sub {
         my (undef, $bytes) = @_;
+
         # OOB messages are sent with empty instruction, for now assume its a ping
         if(substr($bytes, 0, 2) eq '0.') {
-          $c->send({text => $bytes});
-        } else {
-          $client->write($bytes);
+          return $c->send({text => $bytes});
         }
+
+        $client->write($bytes);
+
+        return if $guacd_stream->can_write;
+        _backpressure($ws_stream => $guacd_stream);
       });
       # initiate by sending the id, except the frontend doesn't want the $
       $id =~ s/^\$//;
       my $length = length($id);
       $c->send({text => "0.,$length.$id;"});
     });
+}
+
+# handle backpressure, but it assumes there already is some don't call unles
+# you've checked can_write, that said, don't put it in here for efficiency's sake
+sub _backpressure {
+  my ($in, $out) = @_;
+  $in->stop;
+  $out->once(drain => sub { $in->start });
 }
 
 1;

@@ -61,7 +61,6 @@ sub connect_p {
       #TODO configurable timeout
       $stream->timeout(0);
       $self->{stream} = $stream;
-      #TODO handle backpressure
 
       $stream->on(read => sub {
         my (undef, $bytes) = @_;
@@ -120,6 +119,8 @@ sub handshake_p {
       return $id->[0];
     })->catch(sub { Mojo::Promise->reject("Handshake error: $_[0]") });
 }
+
+sub stream { shift->{stream} }
 
 sub write {
   my ($self, $bytes) = @_;
