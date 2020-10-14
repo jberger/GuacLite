@@ -50,10 +50,14 @@
         // Get display div from document
         var display = document.getElementById("display");
 
+        var tunnel = new Guacamole.WebSocketTunnel('<%= url_for('tunnel')->to_abs %>');
+        tunnel.onstatechange = function (state) {
+          if (state != Guacamole.Tunnel.State.CLOSED) return;
+          alert('Connection closed');
+        };
+
         // Instantiate client, using an HTTP tunnel for communications.
-        var guac = new Guacamole.Client(
-          new Guacamole.WebSocketTunnel('<%= url_for('tunnel')->to_abs %>')
-        );
+        var guac = new Guacamole.Client(tunnel);
 
         // Add client to display div
         const guacDisplay = guac.getDisplay();
