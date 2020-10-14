@@ -77,5 +77,6 @@
 # Avoid README.pod intended for github
 \bREADME\.pod$
 
-# Avoid Dockerfile
+# Avoid docker files
 \bDockerfile$
+\bdocker-compose.yml$

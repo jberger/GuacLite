@@ -8,10 +8,10 @@ use Mojo::Promise;
 use Carp ();
 use Scalar::Util ();
 
-use constant DEBUG => $ENV{MOJO_GUACDCLIENT_DEBUG};
+use constant DEBUG => $ENV{GUACLITE_GUACD_DEBUG};
 
-has host => 'localhost';
-has port => '4822';
+has host => $ENV{GUACLITE_GUACD_HOST} || 'localhost';
+has port => $ENV{GUACLITE_GUACD_PORT} || '4822';
 
 # the following should probably all be required parameters, but for now, do this
 has protocol => 'vnc';
