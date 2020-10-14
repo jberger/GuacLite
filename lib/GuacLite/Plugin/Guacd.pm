@@ -47,8 +47,7 @@ sub _tunnel {
       });
       # initiate by sending the id, except the frontend doesn't want the $
       $id =~ s/^\$//;
-      my $length = length($id);
-      $c->send({text => "0.,$length.$id;"});
+      $c->send({text => GuacLite::Client::Guacd::encode(['', $id])});
     });
 }
 
