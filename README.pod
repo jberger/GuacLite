@@ -34,6 +34,8 @@ It provides the following components, each of which are independent and may be u
 L<GuacLite::Client::Guacd> is a Perl/L<Mojolicious> client that communicates with a guacd service.
 It configures all relevant parameters for communicating with the guacd service and opening a connection to the remote host (including performing the requisite handshake).
 
+The current supported version of the protocol is 1.3.0
+
 =head2 Guacd Websocket Tunneling Plugin
 
 L<GuacLite::Plugin::Guacd> is a plugin that provides a helper method to establish a websocket connection between a client and a guacd service via a configured (but not connected) L<GuacLite::Client::Guacd> instance.

@@ -549,7 +549,7 @@ Guacamole.RawAudioPlayer = function RawAudioPlayer(stream, mimetype) {
      * @param {SampleArray} data
      *     The audio packet to split.
      *
-     * @returns {SampleArray[]}
+     * @returns {!SampleArray[]}
      *     An array of audio packets containing the result of splitting the
      *     provided audio packet. If splitting is possible, this array will
      *     contain two packets. If splitting is not possible, this array will
@@ -659,7 +659,7 @@ Guacamole.RawAudioPlayer = function RawAudioPlayer(stream, mimetype) {
      *     The raw audio packet that should be converted into a Web Audio API
      *     AudioBuffer.
      *
-     * @returns {AudioBuffer}
+     * @returns {!AudioBuffer}
      *     A new Web Audio API AudioBuffer containing the provided audio data,
      *     converted to the format used by the Web Audio API.
      */
@@ -751,7 +751,7 @@ Guacamole.RawAudioPlayer.prototype = new Guacamole.AudioPlayer();
  * @param {String} mimetype
  *     The mimetype to check.
  *
- * @returns {Boolean}
+ * @returns {boolean}
  *     true if the given mimetype is supported by Guacamole.RawAudioPlayer,
  *     false otherwise.
  */
@@ -773,7 +773,7 @@ Guacamole.RawAudioPlayer.isSupportedType = function isSupportedType(mimetype) {
  * additional parameters. Something like "audio/L8;rate=44100" would be valid,
  * however (see https://tools.ietf.org/html/rfc4856).
  *
- * @returns {String[]}
+ * @returns {string[]}
  *     A list of all mimetypes supported by Guacamole.RawAudioPlayer, excluding
  *     any parameters. If the necessary JavaScript APIs for playing raw audio
  *     are absent, this list will be empty.
@@ -1073,7 +1073,7 @@ Guacamole.RawAudioRecorder = function RawAudioRecorder(stream, mimetype) {
      * @param {Number} x
      *     The point at which the normalized sinc function should be computed.
      *
-     * @returns {Number}
+     * @returns {number}
      *     The value of the normalized sinc function at x.
      */
     var sinc = function sinc(x) {
@@ -1100,7 +1100,7 @@ Guacamole.RawAudioRecorder = function RawAudioRecorder(stream, mimetype) {
      * @param {Number} a
      *     The window size to use for the Lanczos kernel.
      *
-     * @returns {Number}
+     * @returns {number}
      *     The value of the Lanczos kernel at the given point for the given
      *     window size.
      */
@@ -1131,7 +1131,7 @@ Guacamole.RawAudioRecorder = function RawAudioRecorder(stream, mimetype) {
      *     0 and 1 inclusive, where 0 represents the earliest point in time and
      *     1 represents the latest.
      *
-     * @returns {Number}
+     * @returns {number}
      *     The value of the waveform at the given location.
      */
     var interpolateSample = function getValueAt(audioData, t) {
@@ -1166,7 +1166,7 @@ Guacamole.RawAudioRecorder = function RawAudioRecorder(stream, mimetype) {
      *     The Web Audio API AudioBuffer that should be converted to a raw
      *     audio packet.
      *
-     * @returns {SampleArray}
+     * @returns {!SampleArray}
      *     A new raw audio packet containing the audio data from the provided
      *     AudioBuffer.
      */
@@ -1356,7 +1356,7 @@ Guacamole.RawAudioRecorder.prototype = new Guacamole.AudioRecorder();
  * @param {String} mimetype
  *     The mimetype to check.
  *
- * @returns {Boolean}
+ * @returns {boolean}
  *     true if the given mimetype is supported by Guacamole.RawAudioRecorder,
  *     false otherwise.
  */
@@ -1378,7 +1378,7 @@ Guacamole.RawAudioRecorder.isSupportedType = function isSupportedType(mimetype) 
  * additional parameters. Something like "audio/L8;rate=44100" would be valid,
  * however (see https://tools.ietf.org/html/rfc4856).
  *
- * @returns {String[]}
+ * @returns {string[]}
  *     A list of all mimetypes supported by Guacamole.RawAudioRecorder,
  *     excluding any parameters. If the necessary JavaScript APIs for recording
  *     raw audio are absent, this list will be empty.
@@ -1596,7 +1596,7 @@ Guacamole.BlobWriter = function BlobWriter(stream) {
      * @param {Number} end
      *     The ending offset of the slice, in bytes, exclusive.
      *
-     * @returns {Blob}
+     * @returns {!Blob}
      *     A Blob containing the data within the given Blob starting at
      *     <code>start</code> and ending at <code>end - 1</code>.
      */
@@ -2099,19 +2099,33 @@ Guacamole.Client = function(tunnel) {
      * Sends a mouse event having the properties provided by the given mouse
      * state.
      * 
-     * @param {Guacamole.Mouse.State} mouseState The state of the mouse to send
-     *                                           in the mouse event.
+     * @param {Guacamole.Mouse.State} mouseState
+     *     The state of the mouse to send in the mouse event.
+     *
+     * @param {Boolean} [applyDisplayScale=false]
+     *     Whether the provided mouse state uses local display units, rather
+     *     than remote display units, and should be scaled to match the
+     *     {@link Guacamole.Display}.
      */
-    this.sendMouseState = function(mouseState) {
+    this.sendMouseState = function sendMouseState(mouseState, applyDisplayScale) {
 
         // Do not send requests if not connected
         if (!isConnected())
             return;
 
+        var x = mouseState.x;
+        var y = mouseState.y;
+
+        // Translate for display units if requested
+        if (applyDisplayScale) {
+            x /= display.getScale();
+            y /= display.getScale();
+        }
+
         // Update client-side cursor
         display.moveCursor(
-            Math.floor(mouseState.x),
-            Math.floor(mouseState.y)
+            Math.floor(x),
+            Math.floor(y)
         );
 
         // Build mask
@@ -2123,7 +2137,40 @@ Guacamole.Client = function(tunnel) {
         if (mouseState.down)   buttonMask |= 16;
 
         // Send message
-        tunnel.sendMessage("mouse", Math.floor(mouseState.x), Math.floor(mouseState.y), buttonMask);
+        tunnel.sendMessage("mouse", Math.floor(x), Math.floor(y), buttonMask);
+    };
+
+    /**
+     * Sends a touch event having the properties provided by the given touch
+     * state.
+     *
+     * @param {Guacamole.Touch.State} touchState
+     *     The state of the touch contact to send in the touch event.
+     *
+     * @param {Boolean} [applyDisplayScale=false]
+     *     Whether the provided touch state uses local display units, rather
+     *     than remote display units, and should be scaled to match the
+     *     {@link Guacamole.Display}.
+     */
+    this.sendTouchState = function sendTouchState(touchState, applyDisplayScale) {
+
+        // Do not send requests if not connected
+        if (!isConnected())
+            return;
+
+        var x = touchState.x;
+        var y = touchState.y;
+
+        // Translate for display units if requested
+        if (applyDisplayScale) {
+            x /= display.getScale();
+            y /= display.getScale();
+        }
+
+        tunnel.sendMessage('touch', touchState.id, Math.floor(x), Math.floor(y),
+            Math.floor(touchState.radiusX), Math.floor(touchState.radiusY),
+            touchState.angle, touchState.force);
+
     };
 
     /**
@@ -2135,7 +2182,7 @@ Guacamole.Client = function(tunnel) {
      * instruction which creates the stream, such as a "clipboard", "file", or
      * "pipe" instruction.
      *
-     * @returns {Guacamole.OutputStream}
+     * @returns {!Guacamole.OutputStream}
      *     A new Guacamole.OutputStream with a newly-allocated index and
      *     associated with this Guacamole.Client.
      */
@@ -2159,7 +2206,7 @@ Guacamole.Client = function(tunnel) {
      *     The mimetype of the audio data that will be sent along the returned
      *     stream.
      *
-     * @return {Guacamole.OutputStream}
+     * @return {!Guacamole.OutputStream}
      *     The created audio stream.
      */
     this.createAudioStream = function(mimetype) {
@@ -2178,7 +2225,7 @@ Guacamole.Client = function(tunnel) {
      *
      * @param {String} mimetype The mimetype of the file being sent.
      * @param {String} filename The filename of the file being sent.
-     * @return {Guacamole.OutputStream} The created file stream.
+     * @return {!Guacamole.OutputStream} The created file stream.
      */
     this.createFileStream = function(mimetype, filename) {
 
@@ -2195,7 +2242,7 @@ Guacamole.Client = function(tunnel) {
      *
      * @param {String} mimetype The mimetype of the data being sent.
      * @param {String} name The name of the pipe.
-     * @return {Guacamole.OutputStream} The created file stream.
+     * @return {!Guacamole.OutputStream} The created file stream.
      */
     this.createPipeStream = function(mimetype, name) {
 
@@ -2212,7 +2259,7 @@ Guacamole.Client = function(tunnel) {
      *
      * @param {String} mimetype The mimetype of the data being sent.
      * @param {String} name The name of the pipe.
-     * @return {Guacamole.OutputStream} The created file stream.
+     * @return {!Guacamole.OutputStream} The created file stream.
      */
     this.createClipboardStream = function(mimetype) {
 
@@ -2264,7 +2311,7 @@ Guacamole.Client = function(tunnel) {
      * @param {String} name
      *     The defined name of an output stream within the given object.
      *
-     * @returns {Guacamole.OutputStream}
+     * @returns {!Guacamole.OutputStream}
      *     An output stream which will write blobs to the named output stream
      *     of the given object.
      */
@@ -2426,6 +2473,20 @@ Guacamole.Client = function(tunnel) {
     this.onvideo = null;
 
     /**
+     * Fired when the remote client is explicitly declaring the level of
+     * multi-touch support provided by a particular display layer.
+     *
+     * @event
+     * @param {Guacamole.Display.VisibleLayer} layer
+     *     The layer whose multi-touch support level is being declared.
+     *
+     * @param {Number} touches
+     *     The maximum number of simultaneous touches supported by the given
+     *     layer, where 0 indicates that touch events are not supported at all.
+     */
+    this.onmultitouch = null;
+
+    /**
      * Fired when the current value of a connection parameter is being exposed
      * by the server.
      *
@@ -2489,6 +2550,18 @@ Guacamole.Client = function(tunnel) {
      * @param {String} name The name of the pipe.
      */
     this.onpipe = null;
+    
+    /**
+     * Fired when a "required" instruction is received. A required instruction
+     * indicates that additional parameters are required for the connection to
+     * continue, such as user credentials.
+     * 
+     * @event
+     * @param {String[]} parameters
+     *      The names of the connection parameters that are required to be
+     *      provided for the connection to continue.
+     */
+    this.onrequired = null;
 
     /**
      * Fired whenever a sync instruction is received from the server, indicating
@@ -2589,6 +2662,14 @@ Guacamole.Client = function(tunnel) {
 
         "miter-limit": function(layer, value) {
             display.setMiterLimit(layer, parseFloat(value));
+        },
+
+        "multi-touch" : function layerSupportsMultiTouch(layer, value) {
+
+            // Process "multi-touch" property only for true visible layers (not off-screen buffers)
+            if (guac_client.onmultitouch && layer instanceof Guacamole.Display.VisibleLayer)
+                guac_client.onmultitouch(layer, parseInt(value));
+
         }
 
     };
@@ -3112,6 +3193,10 @@ Guacamole.Client = function(tunnel) {
 
             display.rect(layer, x, y, w, h);
 
+        },
+                
+        "required": function required(parameters) {
+            if (guac_client.onrequired) guac_client.onrequired(parameters);
         },
         
         "reset": function(parameters) {
@@ -3744,7 +3829,7 @@ Guacamole.Display = function() {
          * Returns whether this frame is ready to be rendered. This function
          * returns true if and only if ALL underlying tasks are unblocked.
          * 
-         * @returns {Boolean} true if all underlying tasks are unblocked,
+         * @returns {boolean} true if all underlying tasks are unblocked,
          *                    false otherwise.
          */
         this.isReady = function() {
@@ -3832,7 +3917,7 @@ Guacamole.Display = function() {
      * @private
      * @param {function} handler The function to call when possible, if any.
      * @param {boolean} blocked Whether the task should start blocked.
-     * @returns {Task} The Task created and added to the queue for future
+     * @returns {!Task} The Task created and added to the queue for future
      *                 running.
      */
     function scheduleTask(handler, blocked) {
@@ -3844,7 +3929,7 @@ Guacamole.Display = function() {
     /**
      * Returns the element which contains the Guacamole display.
      * 
-     * @return {Element} The element containing the Guacamole display.
+     * @return {!Element} The element containing the Guacamole display.
      */
     this.getElement = function() {
         return bounds;
@@ -3874,7 +3959,7 @@ Guacamole.Display = function() {
      * this layer, but the default layer cannot be removed and is the absolute
      * ancestor of all other layers.
      * 
-     * @return {Guacamole.Display.VisibleLayer} The default layer.
+     * @return {!Guacamole.Display.VisibleLayer} The default layer.
      */
     this.getDefaultLayer = function() {
         return default_layer;
@@ -3885,7 +3970,7 @@ Guacamole.Display = function() {
      * a layer for the image of the mouse cursor. This layer is a special case
      * and exists above all other layers, similar to the hardware mouse cursor.
      * 
-     * @return {Guacamole.Display.VisibleLayer} The cursor layer.
+     * @return {!Guacamole.Display.VisibleLayer} The cursor layer.
      */
     this.getCursorLayer = function() {
         return cursor;
@@ -3896,7 +3981,7 @@ Guacamole.Display = function() {
      * layer, but can be moved to be a child of any other layer. Layers returned
      * by this function are visible.
      * 
-     * @return {Guacamole.Display.VisibleLayer} The newly-created layer.
+     * @return {!Guacamole.Display.VisibleLayer} The newly-created layer.
      */
     this.createLayer = function() {
         var layer = new Guacamole.Display.VisibleLayer(displayWidth, displayHeight);
@@ -3909,7 +3994,7 @@ Guacamole.Display = function() {
      * are implemented in the same manner as layers, but do not provide the
      * same nesting semantics.
      * 
-     * @return {Guacamole.Layer} The newly-created buffer.
+     * @return {!Guacamole.Layer} The newly-created buffer.
      */
     this.createBuffer = function() {
         var buffer = new Guacamole.Layer(0, 0);
@@ -4752,7 +4837,7 @@ Guacamole.Display = function() {
      * Returns a canvas element containing the entire display, with all child
      * layers composited within.
      *
-     * @return {HTMLCanvasElement} A new canvas element containing a copy of
+     * @return {!HTMLCanvasElement} A new canvas element containing a copy of
      *                             the display.
      */
     this.flatten = function() {
@@ -4950,7 +5035,7 @@ Guacamole.Display.VisibleLayer = function(width, height) {
     /**
      * Returns the element containing the canvas and any other elements
      * associated with this layer.
-     * @returns {Element} The element containing this layer's canvas.
+     * @returns {!Element} The element containing this layer's canvas.
      */
     this.getElement = function() {
         return div;
@@ -5107,6 +5192,313 @@ Guacamole.Display.VisibleLayer = function(width, height) {
  * @type {Number}
  */
 Guacamole.Display.VisibleLayer.__next_id = 0;
+
+/* SOURCE: Event.js */
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+var Guacamole = Guacamole || {};
+
+/**
+ * An arbitrary event, emitted by a {@link Guacamole.Event.Target}. This object
+ * should normally serve as the base class for a different object that is more
+ * specific to the event type.
+ *
+ * @constructor
+ * @param {String} type
+ *     The unique name of this event type.
+ */
+Guacamole.Event = function Event(type) {
+
+    /**
+     * The unique name of this event type.
+     *
+     * @type {String}
+     */
+    this.type = type;
+
+    /**
+     * An arbitrary timestamp in milliseconds, indicating this event's
+     * position in time relative to other events.
+     *
+     * @type {Number}
+     */
+    this.timestamp = new Date().getTime();
+
+    /**
+     * Returns the number of milliseconds elapsed since this event was created.
+     *
+     * @return {Number}
+     *     The number of milliseconds elapsed since this event was created.
+     */
+    this.getAge = function getAge() {
+        return new Date().getTime() - this.timestamp;
+    };
+
+    /**
+     * Requests that the legacy event handler associated with this event be
+     * invoked on the given event target. This function will be invoked
+     * automatically by implementations of {@link Guacamole.Event.Target}
+     * whenever {@link Guacamole.Event.Target#emit emit()} is invoked.
+     * <p>
+     * Older versions of Guacamole relied on single event handlers with the
+     * prefix "on", such as "onmousedown" or "onkeyup". If a Guacamole.Event
+     * implementation is replacing the event previously represented by one of
+     * these handlers, this function gives the implementation the opportunity
+     * to provide backward compatibility with the old handler.
+     * <p>
+     * Unless overridden, this function does nothing.
+     *
+     * @param {Guacamole.Event.Target} eventTarget
+     *     The {@link Guacamole.Event.Target} that emitted this event.
+     */
+    this.invokeLegacyHandler = function invokeLegacyHandler(eventTarget) {
+        // Do nothing
+    };
+
+};
+
+/**
+ * A {@link Guacamole.Event} that relates to one or more DOM events. Continued
+ * propagation and default behavior of the related DOM events may be prevented
+ * with {@link Guacamole.Event.DOMEvent#stopPropagation stopPropagation()} and
+ * {@link Guacamole.Event.DOMEvent#preventDefault preventDefault()}
+ * respectively.
+ *
+ * @constructor
+ * @augments Guacamole.Event
+ *
+ * @param {String} type
+ *     The unique name of this event type.
+ *
+ * @param {Event[]} events
+ *     The DOM events that are related to this event. Future calls to
+ *     {@link Guacamole.Event.DOMEvent#preventDefault preventDefault()} and
+ *     {@link Guacamole.Event.DOMEvent#stopPropagation stopPropagation()} will
+ *     affect these events.
+ */
+Guacamole.Event.DOMEvent = function DOMEvent(type, events) {
+
+    Guacamole.Event.call(this, type);
+
+    /**
+     * Requests that the default behavior of related DOM events be prevented.
+     * Whether this request will be honored by the browser depends on the
+     * nature of those events and the timing of the request.
+     */
+    this.preventDefault = function preventDefault() {
+        events.forEach(function applyPreventDefault(event) {
+            if (event.preventDefault) event.preventDefault();
+            event.returnValue = false;
+        });
+    };
+
+    /**
+     * Stops further propagation of related events through the DOM. Only events
+     * that are directly related to this event will be stopped.
+     */
+    this.stopPropagation = function stopPropagation() {
+        events.forEach(function applyStopPropagation(event) {
+            event.stopPropagation();
+        });
+    };
+
+};
+
+/**
+ * An object which can dispatch {@link Guacamole.Event} objects. Listeners
+ * registered with {@link Guacamole.Event.Target#on on()} will automatically
+ * be invoked based on the type of {@link Guacamole.Event} passed to
+ * {@link Guacamole.Event.Target#dispatch dispatch()}. It is normally
+ * subclasses of Guacamole.Event.Target that will dispatch events, and usages
+ * of those subclasses that will catch dispatched events with on().
+ *
+ * @constructor
+ */
+Guacamole.Event.Target = function Target() {
+
+    /**
+     * A callback function which handles an event dispatched by an event
+     * target.
+     *
+     * @callback Guacamole.Event.Target~listener
+     * @param {Guacamole.Event} event
+     *     The event that was dispatched.
+     *
+     * @param {Guacamole.Event.Target} target
+     *     The object that dispatched the event.
+     */
+
+    /**
+     * All listeners (callback functions) registered for each event type passed
+     * to {@link Guacamole.Event.Targer#on on()}.
+     *
+     * @private
+     * @type {Object.<String, Guacamole.Event.Target~listener[]>}
+     */
+    var listeners = {};
+
+    /**
+     * Registers a listener for events having the given type, as dictated by
+     * the {@link Guacamole.Event#type type} property of {@link Guacamole.Event}
+     * provided to {@link Guacamole.Event.Target#dispatch dispatch()}.
+     *
+     * @param {String} type
+     *     The unique name of this event type.
+     *
+     * @param {Guacamole.Event.Target~listener} listener
+     *     The function to invoke when an event having the given type is
+     *     dispatched. The {@link Guacamole.Event} object provided to
+     *     {@link Guacamole.Event.Target#dispatch dispatch()} will be passed to
+     *     this function, along with the dispatching Guacamole.Event.Target.
+     */
+    this.on = function on(type, listener) {
+
+        var relevantListeners = listeners[type];
+        if (!relevantListeners)
+            listeners[type] = relevantListeners = [];
+
+        relevantListeners.push(listener);
+
+    };
+
+    /**
+     * Registers a listener for events having the given types, as dictated by
+     * the {@link Guacamole.Event#type type} property of {@link Guacamole.Event}
+     * provided to {@link Guacamole.Event.Target#dispatch dispatch()}.
+     * <p>
+     * Invoking this function is equivalent to manually invoking
+     * {@link Guacamole.Event.Target#on on()} for each of the provided types.
+     *
+     * @param {String[]} types
+     *     The unique names of the event types to associate with the given
+     *     listener.
+     *
+     * @param {Guacamole.Event.Target~listener} listener
+     *     The function to invoke when an event having any of the given types
+     *     is dispatched. The {@link Guacamole.Event} object provided to
+     *     {@link Guacamole.Event.Target#dispatch dispatch()} will be passed to
+     *     this function, along with the dispatching Guacamole.Event.Target.
+     */
+    this.onEach = function onEach(types, listener) {
+        types.forEach(function addListener(type) {
+            this.on(type, listener);
+        }, this);
+    };
+
+    /**
+     * Dispatches the given event, invoking all event handlers registered with
+     * this Guacamole.Event.Target for that event's
+     * {@link Guacamole.Event#type type}.
+     *
+     * @param {Guacamole.Event} event
+     *     The event to dispatch.
+     */
+    this.dispatch = function dispatch(event) {
+
+        // Invoke any relevant legacy handler for the event
+        event.invokeLegacyHandler(this);
+
+        // Invoke all registered listeners
+        var relevantListeners = listeners[event.type];
+        if (relevantListeners) {
+            for (var i = 0; i < relevantListeners.length; i++) {
+                relevantListeners[i](event, this);
+            }
+        }
+
+    };
+
+    /**
+     * Unregisters a listener that was previously registered with
+     * {@link Guacamole.Event.Target#on on()} or
+     * {@link Guacamole.Event.Target#onEach onEach()}. If no such listener was
+     * registered, this function has no effect. If multiple copies of the same
+     * listener were registered, the first listener still registered will be
+     * removed.
+     *
+     * @param {String} type
+     *     The unique name of the event type handled by the listener being
+     *     removed.
+     *
+     * @param {Guacamole.Event.Target~listener} listener
+     *     The listener function previously provided to
+     *     {@link Guacamole.Event.Target#on on()}or
+     *     {@link Guacamole.Event.Target#onEach onEach()}.
+     *
+     * @returns {Boolean}
+     *     true if the specified listener was removed, false otherwise.
+     */
+    this.off = function off(type, listener) {
+
+        var relevantListeners = listeners[type];
+        if (!relevantListeners)
+            return false;
+
+        for (var i = 0; i < relevantListeners.length; i++) {
+            if (relevantListeners[i] === listener) {
+                relevantListeners.splice(i, 1);
+                return true;
+            }
+        }
+
+        return false;
+
+    };
+
+    /**
+     * Unregisters listeners that were previously registered with
+     * {@link Guacamole.Event.Target#on on()} or
+     * {@link Guacamole.Event.Target#onEach onEach()}. If no such listeners
+     * were registered, this function has no effect. If multiple copies of the
+     * same listener were registered for the same event type, the first
+     * listener still registered will be removed.
+     * <p>
+     * Invoking this function is equivalent to manually invoking
+     * {@link Guacamole.Event.Target#off off()} for each of the provided types.
+     *
+     * @param {String[]} types
+     *     The unique names of the event types handled by the listeners being
+     *     removed.
+     *
+     * @param {Guacamole.Event.Target~listener} listener
+     *     The listener function previously provided to
+     *     {@link Guacamole.Event.Target#on on()} or
+     *     {@link Guacamole.Event.Target#onEach onEach()}.
+     *
+     * @returns {Boolean}
+     *     true if any of the specified listeners were removed, false
+     *     otherwise.
+     */
+    this.offEach = function offEach(types, listener) {
+
+        var changed = false;
+
+        types.forEach(function removeListener(type) {
+            changed |= this.off(type, listener);
+        }, this);
+
+        return changed;
+
+    };
+
+};
 
 /* SOURCE: InputSink.js */
 /*
@@ -5449,7 +5841,7 @@ Guacamole.JSONReader = function guacamoleJSONReader(stream) {
     /**
      * Returns the current length of this Guacamole.JSONReader, in characters.
      *
-     * @return {Number}
+     * @return {!Number}
      *     The current length of this Guacamole.JSONReader.
      */
     this.getLength = function getLength() {
@@ -5688,7 +6080,7 @@ Guacamole.Keyboard = function Keyboard(element) {
          * Returns the number of milliseconds elapsed since this event was
          * received.
          *
-         * @return {Number} The number of milliseconds elapsed since this
+         * @return {!Number} The number of milliseconds elapsed since this
          *                  event was received.
          */
         this.getAge = function() {
@@ -6200,7 +6592,7 @@ Guacamole.Keyboard = function Keyboard(element) {
      * @param {Number} keysym
      *     The keysym to check.
      *
-     * @returns {Boolean}
+     * @returns {boolean}
      *     true if the given keysym corresponds to a printable character,
      *     false otherwise.
      */
@@ -6285,7 +6677,7 @@ Guacamole.Keyboard = function Keyboard(element) {
      * @param {String} keyIdentifier
      *     The legacy keyIdentifier from a browser keydown/keyup event.
      *
-     * @returns {Boolean}
+     * @returns {boolean}
      *     true if the keyIdentifier looks sane, false if the keyIdentifier
      *     appears incorrectly derived or is missing entirely.
      */
@@ -6553,7 +6945,7 @@ Guacamole.Keyboard = function Keyboard(element) {
      * inspection of other key events.
      *
      * @private
-     * @returns {Boolean}
+     * @returns {boolean}
      *     true if all currently pressed keys were implicitly pressed, false
      *     otherwise.
      */
@@ -6770,7 +7162,7 @@ Guacamole.Keyboard = function Keyboard(element) {
      * @param {Event} e
      *     The Event to mark.
      *
-     * @returns {Boolean}
+     * @returns {boolean}
      *     true if the given Event was successfully marked, false if the given
      *     Event was already marked.
      */
@@ -6994,7 +7386,7 @@ Guacamole.Keyboard.ModifierState = function() {
  * Returns the modifier state applicable to the keyboard event given.
  * 
  * @param {KeyboardEvent} e The keyboard event to read.
- * @returns {Guacamole.Keyboard.ModifierState} The current state of keyboard
+ * @returns {!Guacamole.Keyboard.ModifierState} The current state of keyboard
  *                                             modifiers.
  */
 Guacamole.Keyboard.ModifierState.fromKeyboardEvent = function(e) {
@@ -7293,7 +7685,7 @@ Guacamole.Layer = function(width, height) {
      * of the canvas may not exactly match those of the Layer, as resizing a
      * canvas while maintaining its state is an expensive operation.
      *
-     * @returns {HTMLCanvasElement}
+     * @returns {!HTMLCanvasElement}
      *     The canvas element backing this Layer.
      */
     this.getCanvas = function getCanvas() {
@@ -7305,7 +7697,7 @@ Guacamole.Layer = function(width, height) {
      * Unlike getCanvas(), the canvas element returned is guaranteed to have
      * the exact same dimensions as the Layer.
      *
-     * @returns {HTMLCanvasElement}
+     * @returns {!HTMLCanvasElement}
      *     A new canvas element containing a copy of the image content this
      *     Layer.
      */
@@ -8071,10 +8463,7 @@ Guacamole.Mouse = function(element) {
      * 
      * @type {Guacamole.Mouse.State}
      */
-    this.currentState = new Guacamole.Mouse.State(
-        0, 0, 
-        false, false, false, false, false
-    );
+    this.currentState = new Guacamole.Mouse.State();
 
     /**
      * Fired whenever the user presses a mouse button down over the element
@@ -8381,7 +8770,7 @@ Guacamole.Mouse = function(element) {
      * @param {HTMLCanvasElement} canvas The cursor image.
      * @param {Number} x The X-coordinate of the cursor hotspot.
      * @param {Number} y The Y-coordinate of the cursor hotspot.
-     * @return {Boolean} true if the cursor was successfully set, false if the
+     * @return {!Boolean} true if the cursor was successfully set, false if the
      *                   cursor could not be set for any reason.
      */
     this.setCursor = function(canvas, x, y) {
@@ -8401,109 +8790,114 @@ Guacamole.Mouse = function(element) {
 };
 
 /**
- * Simple container for properties describing the state of a mouse.
- * 
+ * The current state of a mouse, including position and buttons.
+ *
  * @constructor
- * @param {Number} x The X position of the mouse pointer in pixels.
- * @param {Number} y The Y position of the mouse pointer in pixels.
- * @param {Boolean} left Whether the left mouse button is pressed. 
- * @param {Boolean} middle Whether the middle mouse button is pressed. 
- * @param {Boolean} right Whether the right mouse button is pressed. 
- * @param {Boolean} up Whether the up mouse button is pressed (the fourth
- *                     button, usually part of a scroll wheel). 
- * @param {Boolean} down Whether the down mouse button is pressed (the fifth
- *                       button, usually part of a scroll wheel). 
+ * @augments Guacamole.Position
+ * @param {Guacamole.Mouse.State|Object} [template={}]
+ *     The object whose properties should be copied within the new
+ *     Guacamole.Mouse.State.
  */
-Guacamole.Mouse.State = function(x, y, left, middle, right, up, down) {
+Guacamole.Mouse.State = function State(template) {
 
     /**
-     * Reference to this Guacamole.Mouse.State.
+     * Returns the template object that would be provided to the
+     * Guacamole.Mouse.State constructor to produce a new Guacamole.Mouse.State
+     * object with the properties specified. The order and type of arguments
+     * used by this function are identical to those accepted by the
+     * Guacamole.Mouse.State constructor of Apache Guacamole 1.3.0 and older.
+     *
      * @private
+     * @param {Number} x
+     *     The X position of the mouse pointer in pixels.
+     *
+     * @param {Number} y
+     *     The Y position of the mouse pointer in pixels.
+     *
+     * @param {Boolean} left
+     *     Whether the left mouse button is pressed.
+     *
+     * @param {Boolean} middle
+     *     Whether the middle mouse button is pressed.
+     *
+     * @param {Boolean} right
+     *     Whether the right mouse button is pressed.
+     *
+     * @param {Boolean} up
+     *     Whether the up mouse button is pressed (the fourth button, usually
+     *     part of a scroll wheel).
+     *
+     * @param {Boolean} down
+     *     Whether the down mouse button is pressed (the fifth button, usually
+     *     part of a scroll wheel).
+     *
+     * @return {Object}
+     *     The equivalent template object that would be passed to the new
+     *     Guacamole.Mouse.State constructor.
      */
-    var guac_state = this;
+    var legacyConstructor = function legacyConstructor(x, y, left, middle, right, up, down) {
+        return {
+            x      : x,
+            y      : y,
+            left   : left,
+            middle : middle,
+            right  : right,
+            up     : up,
+            down   : down
+        };
+    };
 
-    /**
-     * The current X position of the mouse pointer.
-     * @type {Number}
-     */
-    this.x = x;
+    // Accept old-style constructor, as well
+    if (arguments.length > 1)
+        template = legacyConstructor.apply(this, arguments);
+    else
+        template = template || {};
 
-    /**
-     * The current Y position of the mouse pointer.
-     * @type {Number}
-     */
-    this.y = y;
+    Guacamole.Position.call(this, template);
 
     /**
      * Whether the left mouse button is currently pressed.
+     *
      * @type {Boolean}
+     * @default false
      */
-    this.left = left;
+    this.left = template.left || false;
 
     /**
      * Whether the middle mouse button is currently pressed.
+     *
      * @type {Boolean}
+     * @default false
      */
-    this.middle = middle;
+    this.middle = template.middle || false;
 
     /**
      * Whether the right mouse button is currently pressed.
+     *
      * @type {Boolean}
+     * @default false
      */
-    this.right = right;
+    this.right = template.right || false;
 
     /**
      * Whether the up mouse button is currently pressed. This is the fourth
      * mouse button, associated with upward scrolling of the mouse scroll
      * wheel.
+     *
      * @type {Boolean}
+     * @default false
      */
-    this.up = up;
+    this.up = template.up || false;
 
     /**
      * Whether the down mouse button is currently pressed. This is the fifth 
      * mouse button, associated with downward scrolling of the mouse scroll
      * wheel.
+     *
      * @type {Boolean}
+     * @default false
      */
-    this.down = down;
-
-    /**
-     * Updates the position represented within this state object by the given
-     * element and clientX/clientY coordinates (commonly available within event
-     * objects). Position is translated from clientX/clientY (relative to
-     * viewport) to element-relative coordinates.
-     * 
-     * @param {Element} element The element the coordinates should be relative
-     *                          to.
-     * @param {Number} clientX The X coordinate to translate, viewport-relative.
-     * @param {Number} clientY The Y coordinate to translate, viewport-relative.
-     */
-    this.fromClientPosition = function(element, clientX, clientY) {
-    
-        guac_state.x = clientX - element.offsetLeft;
-        guac_state.y = clientY - element.offsetTop;
-
-        // This is all JUST so we can get the mouse position within the element
-        var parent = element.offsetParent;
-        while (parent && !(parent === document.body)) {
-            guac_state.x -= parent.offsetLeft - parent.scrollLeft;
-            guac_state.y -= parent.offsetTop  - parent.scrollTop;
-
-            parent = parent.offsetParent;
-        }
-
-        // Element ultimately depends on positioning within document body,
-        // take document scroll into account. 
-        if (parent) {
-            var documentScrollLeft = document.body.scrollLeft || document.documentElement.scrollLeft;
-            var documentScrollTop = document.body.scrollTop || document.documentElement.scrollTop;
-
-            guac_state.x -= parent.offsetLeft - documentScrollLeft;
-            guac_state.y -= parent.offsetTop  - documentScrollTop;
-        }
-
-    };
+    this.down = template.down || false;
 
 };
 
@@ -8549,10 +8943,7 @@ Guacamole.Mouse.Touchpad = function(element) {
      * 
      * @type {Guacamole.Mouse.State}
      */
-    this.currentState = new Guacamole.Mouse.State(
-        0, 0, 
-        false, false, false, false, false
-    );
+    this.currentState = new Guacamole.Mouse.State();
 
     /**
      * Fired whenever a mouse button is effectively pressed. This can happen
@@ -8856,10 +9247,7 @@ Guacamole.Mouse.Touchscreen = function(element) {
      *
      * @type {Guacamole.Mouse.State}
      */
-    this.currentState = new Guacamole.Mouse.State(
-        0, 0,
-        false, false, false, false, false
-    );
+    this.currentState = new Guacamole.Mouse.State();
 
     /**
      * Fired whenever a mouse button is effectively pressed. This can happen
@@ -8957,7 +9345,7 @@ Guacamole.Mouse.Touchscreen = function(element) {
      *
      * @private
      * @param {TouchEvent} e The touch event to check.
-     * @return {Boolean} true if the movement threshold is exceeded, false
+     * @return {!Boolean} true if the movement threshold is exceeded, false
      *                   otherwise.
      */
     function finger_moved(e) {
@@ -9552,7 +9940,7 @@ Guacamole.OnScreenKeyboard = function(layout) {
      * @param {String[]} names
      *     The names of all modifiers to test.
      *
-     * @returns {Boolean}
+     * @returns {boolean}
      *     true if all specified modifiers are pressed, false otherwise.
      */
     var modifiersPressed = function modifiersPressed(names) {
@@ -9642,13 +10030,13 @@ Guacamole.OnScreenKeyboard = function(layout) {
                 var originalKeysym = modifierKeysyms[key.modifier];
 
                 // Activate modifier if not pressed
-                if (!originalKeysym) {
+                if (originalKeysym === undefined) {
                     
                     addClass(keyboard, modifierClass);
                     modifierKeysyms[key.modifier] = key.keysym;
                     
-                    // Send key event
-                    if (osk.onkeydown)
+                    // Send key event only if keysym is meaningful
+                    if (key.keysym && osk.onkeydown)
                         osk.onkeydown(key.keysym);
 
                 }
@@ -9659,8 +10047,8 @@ Guacamole.OnScreenKeyboard = function(layout) {
                     removeClass(keyboard, modifierClass);
                     delete modifierKeysyms[key.modifier];
                     
-                    // Send key event
-                    if (osk.onkeyup)
+                    // Send key event only if original keysym is meaningful
+                    if (originalKeysym && osk.onkeyup)
                         osk.onkeyup(originalKeysym);
 
                 }
@@ -9763,7 +10151,7 @@ Guacamole.OnScreenKeyboard = function(layout) {
 
     /**
      * Returns the element containing the entire on-screen keyboard.
-     * @returns {Element} The element containing the entire on-screen keyboard.
+     * @returns {!Element} The element containing the entire on-screen keyboard.
      */
     this.getElement = function() {
         return keyboard;
@@ -9805,7 +10193,7 @@ Guacamole.OnScreenKeyboard = function(layout) {
      *     which may be the title of the key (a string), the keysym (a number),
      *     a single Key object, or an array of Key objects.
      *     
-     * @returns {Guacamole.OnScreenKeyboard.Key[]}
+     * @returns {!Guacamole.OnScreenKeyboard.Key[]}
      *     An array of all keys associated with the given name.
      */
     var asKeyArray = function asKeyArray(name, object) {
@@ -9889,7 +10277,7 @@ Guacamole.OnScreenKeyboard = function(layout) {
      *     An arbitrary string representing the name of some component of the
      *     on-screen keyboard.
      *
-     * @returns {String}
+     * @returns {string}
      *     A string formatted for use as a CSS class name.
      */
     var getCSSName = function getCSSName(name) {
@@ -10505,6 +10893,100 @@ Guacamole.Parser = function() {
 
 };
 
+/* SOURCE: Position.js */
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+var Guacamole = Guacamole || {};
+
+/**
+ * A position in 2-D space.
+ *
+ * @constructor
+ * @param {Guacamole.Position|Object} [template={}]
+ *     The object whose properties should be copied within the new
+ *     Guacamole.Position.
+ */
+Guacamole.Position = function Position(template) {
+
+    template = template || {};
+
+    /**
+     * The current X position, in pixels.
+     *
+     * @type {Number}
+     * @default 0
+     */
+    this.x = template.x || 0;
+
+    /**
+     * The current Y position, in pixels.
+     *
+     * @type {Number}
+     * @default 0
+     */
+    this.y = template.y || 0;
+
+    /**
+     * Assigns the position represented by the given element and
+     * clientX/clientY coordinates. The clientX and clientY coordinates are
+     * relative to the browser viewport and are commonly available within
+     * JavaScript event objects. The final position is translated to
+     * coordinates that are relative the given element.
+     *
+     * @param {Element} element
+     *     The element the coordinates should be relative to.
+     *
+     * @param {Number} clientX
+     *     The viewport-relative X coordinate to translate.
+     *
+     * @param {Number} clientY
+     *     The viewport-relative Y coordinate to translate.
+     */
+    this.fromClientPosition = function fromClientPosition(element, clientX, clientY) {
+
+        this.x = clientX - element.offsetLeft;
+        this.y = clientY - element.offsetTop;
+
+        // This is all JUST so we can get the position within the element
+        var parent = element.offsetParent;
+        while (parent && !(parent === document.body)) {
+            this.x -= parent.offsetLeft - parent.scrollLeft;
+            this.y -= parent.offsetTop  - parent.scrollTop;
+
+            parent = parent.offsetParent;
+        }
+
+        // Element ultimately depends on positioning within document body,
+        // take document scroll into account.
+        if (parent) {
+            var documentScrollLeft = document.body.scrollLeft || document.documentElement.scrollLeft;
+            var documentScrollTop = document.body.scrollTop || document.documentElement.scrollTop;
+
+            this.x -= parent.offsetLeft - documentScrollLeft;
+            this.y -= parent.offsetTop  - documentScrollTop;
+        }
+
+    };
+
+};
+
 /* SOURCE: RawAudioFormat.js */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -10871,7 +11353,7 @@ Guacamole.SessionRecording = function SessionRecording(tunnel) {
      * @param {Number} timestamp
      *     The timestamp to convert to a relative timestamp.
      *
-     * @returns {Number}
+     * @returns {number}
      *     The difference in milliseconds between the given timestamp and the
      *     first frame of the recording, or zero if no frames yet exist.
      */
@@ -11162,7 +11644,7 @@ Guacamole.SessionRecording = function SessionRecording(tunnel) {
     /**
      * Returns whether playback is currently in progress.
      *
-     * @returns {Boolean}
+     * @returns {boolean}
      *     true if playback is currently in progress, false otherwise.
      */
     this.isPlaying = function isPlaying() {
@@ -11535,7 +12017,7 @@ Guacamole.Status = function(code, message) {
 
     /**
      * Returns whether this status represents an error.
-     * @returns {Boolean} true if this status represents an error, false
+     * @returns {boolean} true if this status represents an error, false
      *                    otherwise.
      */
     this.isError = function() {
@@ -11862,7 +12344,7 @@ Guacamole.StringReader = function(stream) {
      * 
      * @private
      * @param {ArrayBuffer} buffer Arbitrary UTF-8 data.
-     * @return {String} A decoded Unicode string.
+     * @return {string} A decoded Unicode string.
      */
     function __decode_utf8(buffer) {
 
@@ -12155,6 +12637,288 @@ Guacamole.StringWriter = function(stream) {
     this.onack = null;
 
 };
+/* SOURCE: Touch.js */
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+var Guacamole = Guacamole || {};
+
+/**
+ * Provides cross-browser multi-touch events for a given element. The events of
+ * the given element are automatically populated with handlers that translate
+ * touch events into a non-browser-specific event provided by the
+ * Guacamole.Touch instance.
+ * 
+ * @constructor
+ * @augments Guacamole.Event.Target
+ * @param {Element} element
+ *     The Element to use to provide touch events.
+ */
+Guacamole.Touch = function Touch(element) {
+
+    Guacamole.Event.Target.call(this);
+
+    /**
+     * Reference to this Guacamole.Touch.
+     *
+     * @private
+     * @type {Guacamole.Touch}
+     */
+    var guacTouch = this;
+
+    /**
+     * The default X/Y radius of each touch if the device or browser does not
+     * expose the size of the contact area.
+     *
+     * @private
+     * @constant
+     * @type {Number}
+     */
+    var DEFAULT_CONTACT_RADIUS = Math.floor(16 * window.devicePixelRatio);
+
+    /**
+     * The set of all active touches, stored by their unique identifiers.
+     *
+     * @type {Object.<Number, Guacamole.Touch.State>}
+     */
+    this.touches = {};
+
+    /**
+     * The number of active touches currently stored within
+     * {@link Guacamole.Touch#touches touches}.
+     */
+    this.activeTouches = 0;
+
+    /**
+     * Fired whenever a new touch contact is initiated on the element
+     * associated with this Guacamole.Touch.
+     * 
+     * @event Guacamole.Touch#touchstart
+     * @param {Guacamole.Touch.Event} event
+     *     A {@link Guacamole.Touch.Event} object representing the "touchstart"
+     *     event.
+     */
+
+    /**
+     * Fired whenever an established touch contact moves within the element
+     * associated with this Guacamole.Touch.
+     * 
+     * @event Guacamole.Touch#touchmove
+     * @param {Guacamole.Touch.Event} event
+     *     A {@link Guacamole.Touch.Event} object representing the "touchmove"
+     *     event.
+     */
+
+    /**
+     * Fired whenever an established touch contact is lifted from the element
+     * associated with this Guacamole.Touch.
+     * 
+     * @event Guacamole.Touch#touchend
+     * @param {Guacamole.Touch.Event} event
+     *     A {@link Guacamole.Touch.Event} object representing the "touchend"
+     *     event.
+     */
+
+    element.addEventListener('touchstart', function touchstart(e) {
+
+        // Fire "ontouchstart" events for all new touches
+        for (var i = 0; i < e.changedTouches.length; i++) {
+
+            var changedTouch = e.changedTouches[i];
+            var identifier = changedTouch.identifier;
+
+            // Ignore duplicated touches
+            if (guacTouch.touches[identifier])
+                continue;
+
+            var touch = guacTouch.touches[identifier] = new Guacamole.Touch.State({
+                id      : identifier,
+                radiusX : changedTouch.radiusX || DEFAULT_CONTACT_RADIUS,
+                radiusY : changedTouch.radiusY || DEFAULT_CONTACT_RADIUS,
+                angle   : changedTouch.angle || 0.0,
+                force   : changedTouch.force || 1.0 /* Within JavaScript changedTouch events, a force of 0.0 indicates the device does not support reporting changedTouch force */
+            });
+
+            guacTouch.activeTouches++;
+
+            touch.fromClientPosition(element, changedTouch.clientX, changedTouch.clientY);
+            guacTouch.dispatch(new Guacamole.Touch.Event('touchmove', e, touch));
+
+        }
+
+    }, false);
+
+    element.addEventListener('touchmove', function touchstart(e) {
+
+        // Fire "ontouchmove" events for all updated touches
+        for (var i = 0; i < e.changedTouches.length; i++) {
+
+            var changedTouch = e.changedTouches[i];
+            var identifier = changedTouch.identifier;
+
+            // Ignore any unrecognized touches
+            var touch = guacTouch.touches[identifier];
+            if (!touch)
+                continue;
+
+            // Update force only if supported by browser (otherwise, assume
+            // force is unchanged)
+            if (changedTouch.force)
+                touch.force = changedTouch.force;
+
+            // Update touch area, if supported by browser and device
+            touch.angle = changedTouch.angle || 0.0;
+            touch.radiusX = changedTouch.radiusX || DEFAULT_CONTACT_RADIUS;
+            touch.radiusY = changedTouch.radiusY || DEFAULT_CONTACT_RADIUS;
+
+            // Update with any change in position
+            touch.fromClientPosition(element, changedTouch.clientX, changedTouch.clientY);
+            guacTouch.dispatch(new Guacamole.Touch.Event('touchmove', e, touch));
+
+        }
+
+    }, false);
+
+    element.addEventListener('touchend', function touchstart(e) {
+
+        // Fire "ontouchend" events for all updated touches
+        for (var i = 0; i < e.changedTouches.length; i++) {
+
+            var changedTouch = e.changedTouches[i];
+            var identifier = changedTouch.identifier;
+
+            // Ignore any unrecognized touches
+            var touch = guacTouch.touches[identifier];
+            if (!touch)
+                continue;
+
+            // Stop tracking this particular touch
+            delete guacTouch.touches[identifier];
+            guacTouch.activeTouches--;
+
+            // Touch has ended
+            touch.force = 0.0;
+
+            // Update with final position
+            touch.fromClientPosition(element, changedTouch.clientX, changedTouch.clientY);
+            guacTouch.dispatch(new Guacamole.Touch.Event('touchend', e, touch));
+
+        }
+
+    }, false);
+
+};
+
+/**
+ * The current state of a touch contact.
+ *
+ * @constructor
+ * @augments Guacamole.Position
+ * @param {Guacamole.Touch.State|Object} [template={}]
+ *     The object whose properties should be copied within the new
+ *     Guacamole.Touch.State.
+ */
+Guacamole.Touch.State = function State(template) {
+
+    template = template || {};
+
+    Guacamole.Position.call(this, template);
+
+    /**
+     * An arbitrary integer ID which uniquely identifies this contact relative
+     * to other active contacts.
+     *
+     * @type {Number}
+     * @default 0
+     */
+    this.id = template.id || 0;
+
+    /**
+     * The Y radius of the ellipse covering the general area of the touch
+     * contact, in pixels.
+     *
+     * @type {Number}
+     * @default 0
+     */
+    this.radiusX = template.radiusX || 0;
+
+    /**
+     * The X radius of the ellipse covering the general area of the touch
+     * contact, in pixels.
+     *
+     * @type {Number}
+     * @default 0
+     */
+    this.radiusY = template.radiusY || 0;
+
+    /**
+     * The rough angle of clockwise rotation of the general area of the touch
+     * contact, in degrees.
+     *
+     * @type {Number}
+     * @default 0.0
+     */
+    this.angle = template.angle || 0.0;
+
+    /**
+     * The relative force exerted by the touch contact, where 0 is no force
+     * (the touch has been lifted) and 1 is maximum force (the maximum amount
+     * of force representable by the device).
+     *
+     * @type {Number}
+     * @default 1.0
+     */
+    this.force = template.force || 1.0;
+
+};
+
+/**
+ * An event which represents a change in state of a single touch contact,
+ * including the creation or removal of that contact. If multiple contacts are
+ * involved in a touch interaction, each contact will be associated with its
+ * own event.
+ *
+ * @constructor
+ * @augments Guacamole.Event.DOMEvent
+ * @param {String} type
+ *     The name of the touch event type. Possible values are "touchstart",
+ *     "touchmove", and "touchend".
+ *
+ * @param {TouchEvent} event
+ *     The DOM touch event that produced this Guacamole.Touch.Event.
+ *
+ * @param {Guacamole.Touch.State} state
+ *     The state of the touch contact associated with this event.
+ */
+Guacamole.Touch.Event = function TouchEvent(type, event, state) {
+
+    Guacamole.Event.DOMEvent.call(this, type, [ event ]);
+
+    /**
+     * The state of the touch contact associated with this event.
+     *
+     * @type{Guacamole.Touch.State}
+     */
+    this.state = state;
+
+};
+
 /* SOURCE: Tunnel.js */
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
@@ -12232,9 +12996,23 @@ Guacamole.Tunnel = function() {
     };
 
     /**
+     * Changes the stored UUID that uniquely identifies this tunnel, firing the
+     * onuuid event if a handler has been defined.
+     *
+     * @private
+     * @param {String} uuid
+     *     The new state of this tunnel.
+     */
+    this.setUUID = function setUUID(uuid) {
+        this.uuid = uuid;
+        if (this.onuuid)
+            this.onuuid(uuid);
+    };
+
+    /**
      * Returns whether this tunnel is currently connected.
      *
-     * @returns {Boolean}
+     * @returns {boolean}
      *     true if this tunnel is currently connected, false otherwise.
      */
     this.isConnected = function isConnected() {
@@ -12276,6 +13054,15 @@ Guacamole.Tunnel = function() {
      * @type {String}
      */
     this.uuid = null;
+
+    /**
+     * Fired when the UUID that uniquely identifies this tunnel is known.
+     *
+     * @event
+     * @param {String}
+     *     The UUID uniquely identifying this tunnel.
+     */
+    this.onuuid = null;
 
     /**
      * Fired whenever an error is encountered by the tunnel.
@@ -12547,7 +13334,7 @@ Guacamole.HTTPTunnel = function(tunnelURL, crossDomain, extraTunnelHeaders) {
          * 
          * @private
          * @param value The value to convert.
-         * @return {String} The converted value. 
+         * @return {string} The converted value.
          */
         function getElement(value) {
             var string = new String(value);
@@ -12864,7 +13651,7 @@ Guacamole.HTTPTunnel = function(tunnelURL, crossDomain, extraTunnelHeaders) {
             reset_timeout();
 
             // Get UUID from response
-            tunnel.uuid = connect_xmlhttprequest.responseText;
+            tunnel.setUUID(connect_xmlhttprequest.responseText);
 
             // Mark as open
             tunnel.setState(Guacamole.Tunnel.State.OPEN);
@@ -13069,7 +13856,7 @@ Guacamole.WebSocketTunnel = function(tunnelURL) {
          * 
          * @private
          * @param value The value to convert.
-         * @return {String} The converted value. 
+         * @return {string} The converted value.
          */
         function getElement(value) {
             var string = new String(value);
@@ -13177,7 +13964,7 @@ Guacamole.WebSocketTunnel = function(tunnelURL) {
 
                         // Associate tunnel UUID if received
                         if (opcode === Guacamole.Tunnel.INTERNAL_DATA_OPCODE)
-                            tunnel.uuid = elements[0];
+                            tunnel.setUUID(elements[0]);
 
                         // Tunnel is now open and UUID is available
                         tunnel.setState(Guacamole.Tunnel.State.OPEN);
@@ -13313,11 +14100,18 @@ Guacamole.ChainedTunnel = function(tunnelChain) {
          * @private
          */
         function commit_tunnel() {
+
             tunnel.onstatechange = chained_tunnel.onstatechange;
             tunnel.oninstruction = chained_tunnel.oninstruction;
             tunnel.onerror = chained_tunnel.onerror;
-            chained_tunnel.uuid = tunnel.uuid;
+            tunnel.onuuid = chained_tunnel.onuuid;
+
+            // Assign UUID if already known
+            if (tunnel.uuid)
+                chained_tunnel.setUUID(tunnel.uuid);
+
             committedTunnel = tunnel;
+
         }
 
         // Wrap own onstatechange within current tunnel
@@ -13571,7 +14365,7 @@ var Guacamole = Guacamole || {};
  *
  * @type {String}
  */
-Guacamole.API_VERSION = "1.2.0";
+Guacamole.API_VERSION = "1.3.0";
 
 /* SOURCE: VideoPlayer.js */
 /*
@@ -13626,7 +14420,7 @@ Guacamole.VideoPlayer = function VideoPlayer() {
  * @param {String} mimetype
  *     The mimetype to check.
  *
- * @returns {Boolean}
+ * @returns {boolean}
  *     true if the given mimetype is supported by any built-in
  *     Guacamole.VideoPlayer, false otherwise.
  */
@@ -13644,7 +14438,7 @@ Guacamole.VideoPlayer.isSupportedType = function isSupportedType(mimetype) {
  * mimetypes themselves will be listed. Any mimetype parameters, even required
  * ones, will not be included in the list.
  *
- * @returns {String[]}
+ * @returns {string[]}
  *     A list of all mimetypes supported by any built-in Guacamole.VideoPlayer,
  *     excluding any parameters.
  */

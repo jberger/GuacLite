@@ -27,7 +27,7 @@ has video_mimetypes => sub { [] };
 has timezone => '';
 
 # supported version of guacamole protocol
-my @v = (1,1,0);
+my @v = (1,3,0);
 my $v = do { local $" = '_'; "VERSION_@v" };
 
 sub _check_version {
