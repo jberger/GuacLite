@@ -1,12 +1,3 @@
-package GuacLite;
-
-use strict;
-
-our $VERSION = '0.01';
-$VERSION = eval $VERSION;
-
-1;
-
 =head1 NAME
 
 GuacLite - Toolkit for implementing a frontend server/client the Apache Guacamole system
