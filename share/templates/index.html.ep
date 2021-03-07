@@ -71,17 +71,17 @@
 
         // Inform about required variables as indicated by the server
         guac.onrequired = function(list) {
-          console.log(list);
-          alert("The following variables are required: " + JSON.stringify(list));
-        };
+          console.log('Required: ', list);
 
-        /*
-          // TODO: Prompt for the required values and send results back with something like this for each name in list and its value
-          guac.createArgumentValueStream("text/plain", name);
-          const writer = new Guacamole.StringWriter(stream);
-          writer.sendText(value);
-          writer.sendEnd();
-        */
+          // Prompt for each required item
+          list.forEach(name => {
+            const value = prompt(`The value '${name}' is required`);
+            const stream = guac.createArgumentValueStream("text/plain", name);
+            const writer = new Guacamole.StringWriter(stream);
+            writer.sendText(value);
+            writer.sendEnd();
+          });
+        };
 
         // Connect
         const pixel_density = window.devicePixelDensity || 1;
