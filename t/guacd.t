@@ -89,12 +89,12 @@ subtest 'unsupported version' => sub {
     ->wait;
   is_deeply \@received, ['6.select,3.vnc;'];
   ok ! defined $res;
-  is $err, 'Handshake error: Version VERSION_1_0_0 less than supported (VERSION_1_1_0)';
+  is $err, 'Handshake error: Version VERSION_1_0_0 less than supported (VERSION_1_3_0)';
 };
 
 subtest 'invalid response (handshake missing ready)' => sub {
   local @send = (
-    '4.args,13.VERSION_1_1_0,8.hostname,4.port;',
+    '4.args,13.VERSION_1_3_0,8.hostname,4.port;',
     undef, undef, undef,
     '3.bad;',
   );
@@ -114,7 +114,7 @@ subtest 'invalid response (handshake missing ready)' => sub {
     '5.audio;',
     '5.image;',
     '5.video;',
-    '7.connect,13.VERSION_1_1_0,0.,0.;'
+    '7.connect,13.VERSION_1_3_0,0.,0.;'
   ];
   ok ! defined $res;
   is $err, 'Handshake error: Unexpected command "bad" received, expected "ready"';
@@ -122,7 +122,7 @@ subtest 'invalid response (handshake missing ready)' => sub {
 
 subtest 'successful handshake' => sub {
   local @send = (
-    '4.args,13.VERSION_1_1_0,8.hostname,4.port;',
+    '4.args,13.VERSION_1_3_0,8.hostname,4.port;',
     undef, undef, undef,
     '5.ready,5.$1234;',
   );
@@ -146,7 +146,7 @@ subtest 'successful handshake' => sub {
     '5.audio;',
     '5.image;',
     '5.video;',
-    '7.connect,13.VERSION_1_1_0,6.myhost,4.5900;'
+    '7.connect,13.VERSION_1_3_0,6.myhost,4.5900;'
   ];
   ok ! defined $err;
   is $res, '$1234';
