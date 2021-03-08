@@ -43,12 +43,12 @@ It initiates the guacd connection and triggers the handshake, it then passes mes
 
 In the future, passing a connected guacd client should be possible, but it hasn't been implemented yet.
 
-=head1 Utilities
+=head2 Utilities
 
 L<GuacLite::Util> provides utilies for using the system.
 Currently it only provides one function which can bundle the guacamole-common-js files into a single javascript file and provide an initialize function to defer loading the javascript until necessary, which is required by some newer browsers.
 
-=head1 Example Web Application
+=head2 Example Web Application
 
 L<GuacLite::Client::Web> is an example web application which is intended to be used as a reference and test implementation of the tools.
 It should function correctly but currently has almost no user interface and for the time being shouldn't be relied on to be in its current state.
@@ -56,12 +56,12 @@ While the preceding libraries in the distribution are considered production read
 
 In the future, perhaps this application will be made into a fully featured web client, however that risks falling into the (my opinion) feature creep seen in the original Java application that it replaces.
 
-=head1 guaclite script
+=head2 guaclite script
 
 It includes an script which can start the example application or can be used to bundle the javascript via the utility function.
 See details of both above.
 
-=head1 Bundled Assets
+=head2 Bundled Assets
 
 The distribution does include the bundled version guacamole-common-js.
 The exact version provided is not guaranteed.
@@ -69,7 +69,7 @@ For production environments, it is encouraged that you download you own copy of 
 
 It also contains the templates/files for the example application, which are subject to the caveats of the example application itself.
 
-=head1 Containerization Files
+=head2 Containerization Files
 
 The distribution contains example Dockerfile and docker-compose.yml files to facilitate easy use of the example application and for deploying both it and a guacd service.
 These are provided as reference only and should not be relied upon for production use, owing to the same warning as previously about the stability of the example application.
